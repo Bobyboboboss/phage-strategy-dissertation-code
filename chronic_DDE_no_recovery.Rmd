@@ -1,0 +1,159 @@
+---
+title: "Chronic phage DDE (no recovery)"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r,echo=FALSE}
+pastvalue=function(dyno,lag){
+
+tinc=0.01
+bfl=3000
+
+maxlag=(bfl-1)*tinc
+p=0
+
+if(lag>maxlag){
+if(p==bfl) midpnt=1 else midpnt=p+1
+past=hisy[midpnt,dyno]}
+
+else
+
+{
+dispnt=floor((lag/tinc)+0.5)
+disp=(dispnt*tinc-lag)/tinc
+
+A=0.5*disp*(disp-1)
+B=(1-disp^2)
+C=0.5*disp*(disp+1)
+
+if (dispnt>p) midpnt=p+dispnt else midpnt=bfl+p-dispnt
+
+if(midpnt==1) leftpnt=bfl else leftpnt=midpnt-1
+
+if(midpnt==bfl) rightpnt=1 else rightpnt=midpnt+1
+
+R=hisy[rightpnt,dyno]
+L=hisy[leftpnt,dyno]
+M=hisy[midpnt,dyno]
+
+past=A*L+B*M+C*R
+}
+
+past}
+```
+
+```{r}
+nvar=3
+
+r=0.0179
+ri=0.0179
+K=10^9
+c=7.8*10^-6
+beta=10^-8
+alpha=0.0316
+gamma=50
+muv=5*10^-3
+bee=1.02*10^-1
+Te = 12.5
+
+y=array(dim=(nvar))
+
+derivs<-function(x,y){
+
+  S_Te = pastvalue(1, Te)
+  V_Te = pastvalue(3, Te)
+  surv = exp(-c * Te)
+
+  yx[1]=-beta*y[1]*y[3]-c*y[1]+r*y[1]*(1-(y[1]+y[2])/K)
+  yx[2]=beta*S_Te*V_Te*surv - c*y[2] + ri*y[2]*(1-(y[1]+y[2])/K)
+  yx[3]=bee*y[2]-muv*y[3]
+  yx
+
+}
+
+```
+
+```{r}
+y[1]=10^3
+y[2]=1
+y[3]=1
+
+obs=160000
+buflen=3000
+v=0.0
+h=0.01
+
+yt=array(1:nvar)
+dyt=array(1:nvar)
+dym=array(1:nvar)
+yout=array(1:nvar)
+yx=array(1:nvar)
+eqn=array(1:nvar)
+
+hisy=array(0,dim=c(buflen,nvar))
+tmp=array(0,dim=c(buflen,nvar))
+
+ hisy[1:buflen,1] = 10^3
+```
+
+```{r}
+
+rk4=function(dydx,y,t,n){
+for(jj in	1:n)
+	yt[jj]=y[jj]+dydx[jj]*h/2
+	dyt=derivs(t+h/2,yt)
+for(jj in 1:n)
+	yt[jj]=y[jj]+h/2*dyt[jj]
+	dym=derivs(t+h/2,yt)
+for(jj in 1:n)
+	yt[jj]=y[jj]+h*dym[jj]
+	dym=dyt+dym
+	dyt=derivs(t+h,yt)
+for(jj in 1:n)
+	yout[jj]=y[jj]+(h/6)*(dydx[jj]+dyt[jj]+2*dym[jj])
+	yout
+}
+
+```
+
+```{r}
+t1=array(1:obs)
+x1=array(dim=c(obs,nvar))
+
+for(i in 1:obs){
+	eqn=derivs(v,y)
+	y=rk4(eqn,y,v,nvar)
+
+        for(ii in 1:buflen){
+            for(jj in 1:nvar){
+                tmp[ii,jj]=hisy[ii,jj]}}
+
+        for(ii in 2:buflen){
+            for(jj in 1:nvar){
+                hisy[ii,jj]=tmp[ii-1,jj]}}
+
+            for(jj in 1:nvar) hisy[1,jj]=y[jj]
+
+	v=v+h
+	x1[i,]=y
+	t1[i]=v}
+
+range(x1[,1])
+range(x1[,2])
+range(x1[,3])
+tail(x1, 1)
+
+plot(seq(0, max(t1), length = 10),
+     seq(1, max(pmax(x1, 1)), length = 10),
+     bty = "l", xlab = "Time", ylab = "Numbers",
+     main = "Non-linear dynamics simulation",
+     type = "n", log = "y")
+
+lines(t1, pmax(x1[,1], 1), col = "red")
+lines(t1, pmax(x1[,2], 1), col = "blue")
+lines(t1, pmax(x1[,3], 1), col = "magenta")
+
+```
